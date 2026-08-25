@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>LEON ROYALE — 3D Battle Royale</title>
+<link rel="stylesheet" href="./css/style.css" />
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<!-- ============ LADEBILDSCHIRM ============ -->
+<div id="boot" class="overlay">
+  <div class="boot-inner">
+    <div class="logo">LEON<span>ROYALE</span></div>
+    <div class="bar"><i id="boot-bar"></i></div>
+    <p id="boot-text">Insel wird generiert …</p>
+  </div>
+</div>
+
+<!-- ============ LOBBY ============ -->
+<div id="lobby" class="overlay hidden">
+  <header class="topbar">
+    <div class="logo small">LEON<span>ROYALE</span></div>
+    <div class="wallet"><i class="vb"></i><span id="vbucks">0</span></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="locker">GARDEROBE</button>
+    <button class="tab" data-tab="shop">ITEM-SHOP</button>
+    <button class="tab" data-tab="arena">ARENA</button>
+    <button class="tab" data-tab="howto">STEUERUNG</button>
+  </nav>
+
+  <section id="tab-locker" class="tabpage active">
+    <div class="locker-grid">
+      <div class="locker-slot"><h4>SKIN</h4><div id="slot-skins" class="cards"></div></div>
+      <div class="locker-slot"><h4>SPITZHACKE</h4><div id="slot-picks" class="cards"></div></div>
+      <div class="locker-slot"><h4>FAHRZEUG</h4><div id="slot-cars" class="cards"></div></div>
+    </div>
+  </section>
+
+  <section id="tab-shop" class="tabpage">
+    <h3 class="shop-title">TÄGLICHER ITEM-SHOP</h3>
+    <div id="shop-grid" class="cards shop"></div>
+  </section>
+
+  <section id="tab-arena" class="tabpage">
+    <div class="arena-box">
+      <div class="arena-rank">
+        <div id="arena-div-badge" class="div-badge">I</div>
+        <div>
+          <h3 id="arena-div-name">OFFENE DIVISION I</h3>
+          <p id="arena-div-next">Noch 0 Hype bis zur nächsten Division</p>
+          <div class="hype-bar"><i id="arena-hype-bar"></i></div>
+          <p class="hype-num"><b id="arena-hype">0</b> HYPE</p>
+        </div>
+      </div>
+      <ul class="arena-rules">
+        <li><b>Kein Bauen.</b> Reiner Aim- und Positionierungskampf.</li>
+        <li>Buy-In: ab Division 4 kostet der Einstieg Hype.</li>
+        <li>Hype pro Elim + Platzierungsbonus, Hype-Verlust bei frühem Ausscheiden.</li>
+        <li>Kleinere Insel, schnellerer Sturm, alle Gegner starten voll ausgerüstet.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="tab-howto" class="tabpage">
+    <div class="howto">
+      <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Bewegen</div>
+      <div><kbd>Maus</kbd> Umsehen &nbsp;·&nbsp; <kbd>LMB</kbd> Angriff / Schuss</div>
+      <div><kbd>Shift</kbd> Sprinten &nbsp;·&nbsp; <kbd>Space</kbd> Springen</div>
+      <div><kbd>1</kbd> Leviathan-Axt &nbsp;<kbd>2</kbd> SMG &nbsp;<kbd>3</kbd> Schrotflinte &nbsp;<kbd>4</kbd> Bogen</div>
+      <div><kbd>Q</kbd> Wand &nbsp;<kbd>E</kbd> Rampe &nbsp;<kbd>R</kbd> Boden &nbsp;(Bauen mit <kbd>LMB</kbd>)</div>
+      <div><kbd>F</kbd> Porsche ein-/aussteigen &nbsp;·&nbsp; <kbd>Tab</kbd> Karte</div>
+      <div><kbd>Esc</kbd> Pause / zurück zur Lobby</div>
+      <p class="tip">Bäume → Holz, Steine → Stein, Autos → Metall. Baue Rampen, um dem Sturm zu entkommen.</p>
+    </div>
+  </section>
+
+  <footer class="lobbybar">
+    <div class="modepick">
+      <button class="mode active" data-mode="br">BATTLE ROYALE<span>mit Bauen</span></button>
+      <button class="mode" data-mode="arena">ARENA<span>ohne Bauen</span></button>
+    </div>
+    <div id="loadout-line">Kratos · Leviathan-Axt</div>
+    <button id="btn-play" class="play">SPIELEN</button>
+  </footer>
+</div>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="crosshair"></div>
+
+  <div class="hud-top">
+    <div class="pill alive">ÜBRIG <b id="alive">50</b></div>
+    <div class="pill kills">ELIMS <b id="kills">0</b></div>
+    <div class="pill storm" id="storm-info">STURM 0:00</div>
+    <div class="pill hype hidden" id="hype-pill">HYPE <b id="hud-hype">0</b></div>
+  </div>
+
+  <div class="hud-mats">
+    <span class="mat wood"><i></i><b id="mat-wood">0</b></span>
+    <span class="mat stone"><i></i><b id="mat-stone">0</b></span>
+    <span class="mat metal"><i></i><b id="mat-metal">0</b></span>
+  </div>
+
+  <div class="hud-bottom">
+    <div class="bars">
+      <div class="bar-hp"><i id="bar-hp"></i><span id="hp-num">100</span></div>
+      <div class="bar-shield"><i id="bar-shield"></i><span id="sh-num">0</span></div>
+    </div>
+    <div id="slots" class="slots"></div>
+  </div>
+
+  <div id="ammo" class="ammo hidden"><b id="ammo-mag">0</b><span id="ammo-res">/0</span></div>
+  <div id="killfeed" class="killfeed"></div>
+  <div id="toast" class="toast"></div>
+  <canvas id="minimap" width="220" height="220" class="minimap"></canvas>
+  <div id="bigmap" class="bigmap hidden"><canvas id="bigmap-c" width="640" height="640"></canvas></div>
+  <div id="dmg-vignette"></div>
+  <div id="drive-hud" class="drive hidden">
+    <div class="speedo"><b id="kmh">0</b><span>km/h</span></div>
+    <div class="drive-tip"><kbd>W</kbd>/<kbd>S</kbd> Gas/Bremse · <kbd>A</kbd>/<kbd>D</kbd> Lenken · <kbd>Space</kbd> Handbremse · <kbd>F</kbd> Aussteigen</div>
+  </div>
+</div>
+
+<!-- ============ PAUSE ============ -->
+<div id="pause" class="overlay dim hidden">
+  <div class="panel">
+    <h2>PAUSE</h2>
+    <button id="btn-resume" class="play">WEITER</button>
+    <button id="btn-quit" class="ghost">ZURÜCK ZUR LOBBY</button>
+  </div>
+</div>
+
+<!-- ============ MATCH-ENDE ============ -->
+<div id="result" class="overlay dim hidden">
+  <div class="panel">
+    <h2 id="result-title">#1 VICTORY ROYALE</h2>
+    <p id="result-sub"></p>
+    <div class="reward"><i class="vb"></i><span id="result-vb">0</span> V-Bucks verdient</div>
+    <button id="btn-again" class="play">ZURÜCK ZUR LOBBY</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
