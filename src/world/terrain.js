@@ -89,3 +89,85 @@ export class Terrain {
     return m;
   }
 }
+
+/**
+ * Flache, kreisrunde Stadtinsel mit hartem Rand - Basis für die
+ * Creative-Map "Tilted Town". Straßen und Plätze liegen als eigene
+ * Flächen knapp über dem Gras, damit die Kanten sauber bleiben.
+ */
+export class TownTerrain {
+  constructor({ radius = 108, segments = 150, seed = 7 } = {}) {
+    this.radius = radius;
+    this.size = radius * 2.35;
+    this.half = this.size / 2;
+    this.seed = seed;
+    this.groundY = 2.0;
+    this.mesh = this._build(segments);
+  }
+
+  heightAt(x, z) {
+    const d = Math.hypot(x, z);
+    // Innen völlig eben, am Rand steiler Abfall ins Wasser
+    // Steilkante, danach fällt der Meeresboden tief genug ab, dass er
+    // durch das Wasser nicht mehr als heller Saum durchscheint.
+    const t = THREE.MathUtils.clamp((this.radius - d) / 7, 0, 1);
+    const e = t * t * (3 - 2 * t);
+    const shelf = THREE.MathUtils.clamp((d - this.radius) / 26, 0, 1);
+    return -16 * shelf * shelf + (-4 + (this.groundY + 4) * e) * (1 - shelf);
+  }
+
+  normalAt(x, z, e = 1.2) {
+    const hL = this.heightAt(x - e, z), hR = this.heightAt(x + e, z);
+    const hD = this.heightAt(x, z - e), hU = this.heightAt(x, z + e);
+    return new THREE.Vector3(hL - hR, 2 * e, hD - hU).normalize();
+  }
+
+  isWater(x, z) { return this.heightAt(x, z) < 0.2; }
+  outOfBounds(x, z) { return Math.hypot(x, z) > this.radius - 1.5; }
+
+  _build(segments) {
+    const geo = new THREE.PlaneGeometry(this.size, this.size, segments, segments);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+    const grass = new THREE.Color('#5ab23f');
+    const grassDark = new THREE.Color('#3f8f2e');
+    const cliff = new THREE.Color('#7d6a4e');
+    const seabed = new THREE.Color('#14496f');
+    const tmp = new THREE.Color();
+
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i);
+      const y = this.heightAt(x, z);
+      pos.setY(i, y);
+      if (y < -3) tmp.copy(seabed);
+      else if (y < 1.4) tmp.copy(cliff);
+      else tmp.copy(grass).lerp(grassDark, (Math.sin(x * 0.22) * Math.cos(z * 0.19) + 1) / 2 * 0.5);
+      colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    mesh.receiveShadow = true;
+    mesh.name = 'town-terrain';
+    return mesh;
+  }
+
+  /** Leuchtende Barriere am Inselrand wie in Creative-Maps. */
+  barrier() {
+    const g = new THREE.Group();
+    const wall = new THREE.Mesh(
+      new THREE.CylinderGeometry(this.radius, this.radius, 26, 96, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    wall.position.y = this.groundY + 10;
+    g.add(wall);
+    const ring = new THREE.Mesh(
+      new THREE.CylinderGeometry(this.radius + 0.2, this.radius + 0.2, 1.6, 96, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    ring.position.y = this.groundY + 0.8;
+    g.add(ring);
+    return g;
+  }
+}

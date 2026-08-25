@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { Input } from './engine/input.js';
+import { TouchControls } from './engine/touch.js';
+import { perf, isTouch, isPhone, requestFullscreen } from './engine/device.js';
 import { sfx } from './engine/audio.js';
 import { save } from './save.js';
 import { Match } from './match.js';
@@ -19,19 +21,22 @@ const $ = (id) => document.getElementById(id);
 
 const canvas = $('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(perf.pixelRatio);
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = perf.shadows;
+renderer.shadowMap.type = perf.mobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 1400);
 const input = new Input(canvas);
+input.touchMode = isTouch;
+const touch = new TouchControls(input, $('touch'));
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  checkOrientation();
 });
 
 function skyScene(color = 0x8fc4f0, fog = 0xa9cfee, fogNear = 180, fogFar = 620) {
@@ -39,19 +44,24 @@ function skyScene(color = 0x8fc4f0, fog = 0xa9cfee, fogNear = 180, fogFar = 620)
   s.background = new THREE.Color(color);
   s.fog = new THREE.Fog(fog, fogNear, fogFar);
   s.add(new THREE.HemisphereLight(0xd9ecff, 0x4a5a3f, 1.05));
-  const sun = new THREE.DirectionalLight(0xfff4dc, 1.15);
-  sun.position.set(120, 190, 90);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 20;
-  sun.shadow.camera.far = 520;
-  const d = 90;
-  Object.assign(sun.shadow.camera, { left: -d, right: d, top: d, bottom: -d });
-  sun.shadow.camera.updateProjectionMatrix();
-  sun.shadow.bias = -0.0008;
+  const sun = makeSun();
   s.add(sun, sun.target);
   s.userData.sun = sun;
   return s;
+}
+
+function makeSun() {
+  const sun = new THREE.DirectionalLight(0xfff4dc, 1.15);
+  sun.position.set(120, 190, 90);
+  sun.castShadow = perf.shadows;
+  sun.shadow.mapSize.set(perf.shadowMap, perf.shadowMap);
+  sun.shadow.camera.near = 20;
+  sun.shadow.camera.far = 520;
+  const d = perf.mobile ? 70 : 90;
+  Object.assign(sun.shadow.camera, { left: -d, right: d, top: d, bottom: -d });
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.shadow.bias = -0.0008;
+  return sun;
 }
 
 /* ------------------------------------------------------------------ */
@@ -132,8 +142,18 @@ function setState(s) {
   hud.show(s === 'playing' || s === 'paused');
   $('pause').classList.toggle('hidden', s !== 'paused');
   $('result').classList.toggle('hidden', s !== 'result');
+  touch.show(s === 'playing');
+  hud.root.classList.toggle('touch-ui', isTouch);
   if (s === 'playing') input.lock(); else input.unlock();
+  checkOrientation();
 }
+
+/* Querformat-Hinweis auf dem Telefon */
+function checkOrientation() {
+  const portrait = innerHeight > innerWidth;
+  $('rotate').classList.toggle('hidden', !(isPhone && portrait));
+}
+addEventListener('orientationchange', () => setTimeout(checkOrientation, 250));
 
 /* ---------------- Match starten / beenden ---------------- */
 
@@ -158,14 +178,21 @@ function startMatch(mode) {
     mode,
     loadout: { skin: eq.skin, pickaxe: eq.pickaxe, car: eq.car },
     hud,
+    quality: perf.worldQuality,
+    botScale: perf.botScale,
   });
+  touch.setBuildEnabled(mode !== 'arena');
   hud.setMode(mode);
-  hud.killfeed(mode === 'arena'
-    ? `ARENA — ${divisionFor(save.data.hype).name} · Bauen deaktiviert`
-    : 'BATTLE ROYALE — viel Erfolg!', '#3aa0ff');
-  hud.toast(mode === 'arena'
-    ? '<b>ARENA</b><br><span style="font-size:15px">Kein Bauen · Voll ausgerüstet</span>'
-    : '<b>MATCH GESTARTET</b><br><span style="font-size:15px">Sammle Material und finde Truhen</span>', 2600);
+  const intro = {
+    arena: [`ARENA — ${divisionFor(save.data.hype).name} · Bauen deaktiviert`,
+      '<b>ARENA</b><br><span style="font-size:15px">Kein Bauen · Voll ausgerüstet</span>'],
+    team: ['TEAM-RUMBLE — Tilted Town · erstes Team mit 25 Elims gewinnt',
+      '<b>TEAM-RUMBLE</b><br><span style="font-size:15px">Tilted Town · Wiedereinstieg nach 3 s</span>'],
+    br: ['BATTLE ROYALE — viel Erfolg!',
+      '<b>MATCH GESTARTET</b><br><span style="font-size:15px">Sammle Material und finde Truhen</span>'],
+  }[mode];
+  hud.killfeed(intro[0], '#3aa0ff');
+  hud.toast(intro[1], 2600);
   setState('playing');
 }
 
@@ -175,8 +202,10 @@ function endMatch() {
   stats.matches++; stats.kills += r.kills;
   if (r.won) stats.wins++;
 
-  let vbucks = 25 + r.kills * 20 + Math.max(0, Math.round((r.total - r.placement) * 2.5));
-  if (r.won) vbucks += 250;
+  let vbucks = r.mode === 'team'
+    ? 40 + r.kills * 12
+    : 25 + r.kills * 20 + Math.max(0, Math.round((r.total - r.placement) * 2.5));
+  if (r.won) vbucks += r.mode === 'team' ? 150 : 250;
   save.addVbucks(vbucks);
 
   let hypeDelta = 0;
@@ -188,15 +217,22 @@ function endMatch() {
   }
   save.persist();
 
-  $('result-title').textContent = r.won ? '#1 VICTORY ROYALE' : `#${r.placement} von ${r.total}`;
-  $('result-title').style.color = r.won ? '#ffc93c' : '#e8f1ff';
-  const base = r.won
-    ? `Du hast ${r.kills} Gegner eliminiert und überlebt.`
-    : `Ausgeschaltet von ${r.killer || 'dem Sturm'} · ${r.kills} Eliminierungen.`;
-  $('result-sub').innerHTML = r.mode === 'arena'
-    ? `${base}<br><b style="color:${hypeDelta >= 0 ? '#3ddc84' : '#ff4d5e'}">
-       ${hypeDelta >= 0 ? '+' : ''}${hypeDelta} Hype</b> · ${divisionFor(save.data.hype).name}`
-    : base;
+  if (r.mode === 'team') {
+    $('result-title').textContent = r.won ? 'TEAM 1 GEWINNT' : 'TEAM 2 GEWINNT';
+    $('result-title').style.color = r.won ? '#4fa8ff' : '#ff5a4d';
+    $('result-sub').innerHTML =
+      `Endstand <b>${r.score[0]} : ${r.score[1]}</b> · deine Eliminierungen: <b>${r.kills}</b>`;
+  } else {
+    $('result-title').textContent = r.won ? '#1 VICTORY ROYALE' : `#${r.placement} von ${r.total}`;
+    $('result-title').style.color = r.won ? '#ffc93c' : '#e8f1ff';
+    const base = r.won
+      ? `Du hast ${r.kills} Gegner eliminiert und überlebt.`
+      : `Ausgeschaltet von ${r.killer || 'dem Sturm'} · ${r.kills} Eliminierungen.`;
+    $('result-sub').innerHTML = r.mode === 'arena'
+      ? `${base}<br><b style="color:${hypeDelta >= 0 ? '#3ddc84' : '#ff4d5e'}">
+         ${hypeDelta >= 0 ? '+' : ''}${hypeDelta} Hype</b> · ${divisionFor(save.data.hype).name}`
+      : base;
+  }
   $('result-vb').textContent = vbucks.toLocaleString('de-DE');
 
   setState('result');
@@ -207,18 +243,9 @@ function endMatch() {
 let matchScene = skyScene();
 function rebuildMatchLights() {
   matchScene.background = new THREE.Color(0x8fc4f0);
-  matchScene.fog = new THREE.Fog(0xa9cfee, 200, 700);
+  matchScene.fog = new THREE.Fog(0xa9cfee, perf.fogFar * 0.3, perf.fogFar);
   matchScene.add(new THREE.HemisphereLight(0xd9ecff, 0x4a5a3f, 1.05));
-  const sun = new THREE.DirectionalLight(0xfff4dc, 1.15);
-  sun.position.set(120, 190, 90);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 20;
-  sun.shadow.camera.far = 520;
-  const d = 90;
-  Object.assign(sun.shadow.camera, { left: -d, right: d, top: d, bottom: -d });
-  sun.shadow.camera.updateProjectionMatrix();
-  sun.shadow.bias = -0.0008;
+  const sun = makeSun();
   matchScene.add(sun, sun.target);
   matchScene.userData.sun = sun;
 }
@@ -243,6 +270,7 @@ function quitToLobby() {
 
 canvas.addEventListener('click', () => { if (state === 'playing') input.lock(); });
 document.addEventListener('pointerlockchange', () => {
+  if (isTouch) return;
   if (state === 'playing' && !input.locked && match && !match.ended) setState('paused');
 });
 
@@ -271,6 +299,7 @@ function frame(now) {
   }
 
   if (state === 'playing' && match) {
+    touch.apply();
     if (input.hit('Escape')) { setState('paused'); input.endFrame(); return; }
     if (input.hit('Tab')) { mapOpen = !mapOpen; hud.toggleMap(mapOpen); }
 
@@ -288,9 +317,10 @@ function frame(now) {
     hudTick += dt;
     hud.update(match.player, {
       alive: match.aliveCount(),
-      stormLabel: match.storm.label(),
+      stormLabel: match.storm ? match.storm.label() : 'TILTED TOWN',
       inStorm: match.inStorm,
       hype: save.data.hype,
+      team: match.teamPlay ? match.teamState() : null,
     });
     if (hudTick > 0.2) { hudTick = 0; hud.updateMaps(match.world, match.player, match.bots, match.storm); }
 
@@ -318,9 +348,12 @@ async function boot() {
     ['Lobby wird aufgebaut …', (previews) => {
       lobby = new Lobby({
         previews,
-        onPlay: (mode) => startMatch(mode),
+        onPlay: (mode) => { if (isTouch) requestFullscreen(); startMatch(mode); },
         onLoadoutChange: () => refreshStage(),
       });
+      touch.onPause = () => setState('paused');
+      touch.onMap = () => { mapOpen = !mapOpen; hud.toggleMap(mapOpen); };
+      hud.onSlot = (i) => match?.player.selectSlot(i);
       refreshStage();
     }],
   ];

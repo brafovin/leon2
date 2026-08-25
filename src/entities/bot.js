@@ -16,7 +16,7 @@ const SKILL = {
 let botCounter = 0;
 
 export class Bot {
-  constructor(scene, world, { x, y, z }, difficulty = 'normal', index = 0) {
+  constructor(scene, world, { x, y, z }, difficulty = 'normal', index = 0, team = 0) {
     this.scene = scene;
     this.world = world;
     this.skill = SKILL[difficulty] || SKILL.normal;
@@ -30,6 +30,7 @@ export class Bot {
     this.grounded = true;
     this.alive = true;
     this.isPlayer = false;
+    this.team = team;
     this.name = `${this.rig.name} ${String(++botCounter).padStart(2, '0')}`;
 
     this.hp = this.skill.hp; this.maxHp = 100;
@@ -71,6 +72,7 @@ export class Bot {
     let best = null, bestD = Infinity;
     for (const t of ctx.targets) {
       if (t === this || !t.alive) continue;
+      if (ctx.teamPlay && t.team === this.team) continue;   // kein Beschuss der eigenen Farbe
       const d = this.pos.distanceTo(t.pos);
       if (d > this.skill.range || d > bestD) continue;
       const dir = new THREE.Vector3(
@@ -168,7 +170,11 @@ export class Bot {
     const muzzle = eye.clone().addScaledVector(aim, 0.6);
     const foes = this._foes;
     foes.length = 0;
-    for (const x of ctx.targets) if (x !== this) foes.push(x);
+    for (const x of ctx.targets) {
+      if (x === this) continue;
+      if (ctx.teamPlay && x.team === this.team) continue;
+      foes.push(x);
+    }
     for (let i = 0; i < shots; i++) {
       const d = spreadDir(aim, this.skill.spread * (this.weaponId === 'shotgun' ? 2.2 : 1));
       const hit = hitscan(eye, d, this.def.range, foes, this.world, ctx.build);
@@ -202,6 +208,30 @@ export class Bot {
   die() {
     this.alive = false;
     this.rig.root.visible = false;
+  }
+
+  respawn(p) {
+    this.pos.set(p.x, p.y + 0.2, p.z);
+    this.vel.set(0, 0, 0);
+    this.hp = this.skill.hp;
+    this.shield = this.skill.shield;
+    this.alive = true;
+    this.state = 'roam';
+    this.target = null;
+    this.dest = null;
+    this.rig.root.visible = true;
+  }
+
+  /** Farbige Markierung über dem Kopf, damit Teams unterscheidbar sind. */
+  setTeamMarker(color) {
+    const m = new THREE.Mesh(
+      new THREE.ConeGeometry(0.22, 0.42, 4),
+      new THREE.MeshBasicMaterial({ color }),
+    );
+    m.position.y = 1.15;
+    m.rotation.x = Math.PI;
+    this.rig.head.add(m);
+    this.marker = m;
   }
 
   dispose() { this.scene.remove(this.rig.root); }

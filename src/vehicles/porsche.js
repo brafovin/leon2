@@ -166,8 +166,9 @@ export class Porsche {
     const driving = !!this.driver;
 
     if (driving && input) {
-      const throttle = (input.down('KeyW') ? 1 : 0) - (input.down('KeyS') ? 1 : 0);
-      const steerIn = (input.down('KeyA') ? 1 : 0) - (input.down('KeyD') ? 1 : 0);
+      const ax = input.moveAxis();
+      const throttle = Math.abs(ax.y) > 0.2 ? Math.sign(ax.y) : 0;
+      const steerIn = Math.abs(ax.x) > 0.15 ? -ax.x : 0;
       const handbrake = input.down('Space');
 
       if (throttle > 0) this.speed += this.accelRate * dt * (1 - Math.min(1, this.speed / this.maxSpeed) * 0.7);

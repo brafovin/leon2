@@ -28,12 +28,38 @@ three.js liegt unter `vendor/` — das Spiel läuft komplett offline.
 Gekaufte Items landen in der **Garderobe**; die Ausrüstung steht live in der Lobby auf der Bühne.
 V-Bucks, Besitz, Ausrüstung und Arena-Hype werden im `localStorage` gespeichert.
 
+## Handy & Tablet
+
+Das Spiel läuft im Browser des Telefons. Auf Touchgeräten schaltet es automatisch um:
+
+- **Linker Daumen** — dynamischer Analog-Stick (überall in der linken Bildschirmhälfte aufsetzen).
+  Voller Ausschlag = sprinten.
+- **Rechte Bildschirmhälfte** — wischen zum Umsehen, kurzes Tippen feuert einen Schuss.
+- **Knöpfe** — FEUER (halten, auch für Einzelschusswaffen), Springen, ZIEL (Umschalter),
+  `F` für Truhe/Auto, Nachladen, dazu WAND/RAMPE/BODEN/MAT zum Bauen sowie KARTE und Pause.
+- Waffen werden durch Antippen der Slot-Leiste am unteren Rand gewechselt.
+- Beim Start wird Vollbild und Querformat angefordert; im Hochformat erscheint ein Dreh-Hinweis.
+
+Auf Telefonen werden Auflösung, Schatten, Vegetationsdichte und Gegnerzahl automatisch
+reduziert (`src/engine/device.js`), damit die Bildrate stabil bleibt.
+
 ## Modi
 
 ### Battle Royale (mit Bauen)
 30 Spieler, 430 m große Insel mit acht benannten Orten, Truhen, Sturmkreis in sieben Phasen.
 Material wird abgebaut (Bäume → Holz, Felsen → Stein, Wracks → Metall) und in Wände, Rampen und
 Böden verbaut. Bauteile haben Trefferpunkte und lassen sich zerschießen.
+
+### Team-Rumble — Tilted Town (Stadt-Map)
+12 Spieler, zwei Teams, **kein Sturm, dafür Wiedereinstieg nach 3,5 Sekunden**. Das erste Team
+mit **25 Eliminierungen** gewinnt; der Punktestand steht als Scoreboard oben rechts. Gegner tragen
+eine rote Markierung über dem Kopf, Teamkollegen eine blaue — Friendly Fire ist aus.
+
+Gespielt wird auf einer eigenen Map: eine **runde Stadtinsel** mit leuchtender Randbarriere,
+Straßenraster mit Bürgersteigen und Mittelstreifen, Vorstadthäusern mit Veranda und begehbarem
+Dach, zentralem Platz mit Pavillon, Einkaufszentrum mit Parkplatz, einem Footballfeld samt
+Tribünen und Torstangen, dazu geparkte Autos (Metall), Straßenlaternen, Hecken und Bäume.
+Bauen ist hier erlaubt.
 
 ### Arena (ohne Bauen)
 16 Spieler, kleinere Insel, schnellerer Sturm. **Bauen ist deaktiviert** — alle starten voll ausgerüstet
@@ -79,8 +105,8 @@ src/
   main.js             Renderer, Lobby-Bühne, Zustandsautomat, Hauptschleife
   match.js            eine Runde: Welt, Spieler, Bots, Sturm, Truhen, Ergebnis
   save.js             localStorage (V-Bucks, Besitz, Ausrüstung, Hype)
-  engine/             Eingabe (Pointer Lock) und prozedurale WebAudio-Sounds
-  world/              Value-Noise, Insel-Heightfield, Props, Gebäude, Spatial Grid
+  engine/             Eingabe (Pointer Lock), Touch-Steuerung, Geräteprofile, WebAudio-Sounds
+  world/              Value-Noise, Insel-Heightfield, Stadt-Map, Props, Gebäude, Spatial Grid
   entities/           Charakter-Rigs (Kratos, Atreus, Bots), Spieler, Bot-KI
   items/              Leviathan-Axt, Waffendefinitionen und -modelle
   vehicles/           Porsche 991 inkl. Fahrphysik
@@ -90,6 +116,9 @@ src/
 
 Kollisionen und Schussstrahlen laufen über ein uniformes Gitter (8 m Zellen), damit die rund
 1.200 Kollisionsobjekte einer Insel nicht linear durchsucht werden müssen.
+
+Die Touch-Steuerung schreibt in dieselbe `Input`-Instanz wie Maus und Tastatur (virtuelle Tasten
+plus eine analoge Bewegungsachse) — Spieler-, Fahrzeug- und Bau-Code kennen den Unterschied nicht.
 
 ## Rechtliches
 

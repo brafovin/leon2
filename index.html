@@ -2,7 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#070b16" />
 <title>LEON ROYALE — 3D Battle Royale</title>
 <link rel="stylesheet" href="./css/style.css" />
 <script type="importmap">
@@ -85,6 +88,7 @@
     <div class="modepick">
       <button class="mode active" data-mode="br">BATTLE ROYALE<span>mit Bauen</span></button>
       <button class="mode" data-mode="arena">ARENA<span>ohne Bauen</span></button>
+      <button class="mode" data-mode="team">TEAM-RUMBLE<span>Stadt · 25 Elims</span></button>
     </div>
     <div id="loadout-line">Kratos · Leviathan-Axt</div>
     <button id="btn-play" class="play">SPIELEN</button>
@@ -117,6 +121,12 @@
   </div>
 
   <div id="ammo" class="ammo hidden"><b id="ammo-mag">0</b><span id="ammo-res">/0</span></div>
+  <div id="scoreboard" class="scoreboard hidden">
+    <div class="sb-top"><i class="sb-badge"></i><div class="sb-bar"><i id="sb-fill"></i></div><b id="sb-num">0 / 25</b></div>
+    <div class="sb-row" id="sb-row-1"><span class="sb-rank">1st</span><span class="sb-name">Team 1</span><b class="sb-score">0</b></div>
+    <div class="sb-row" id="sb-row-2"><span class="sb-rank">2nd</span><span class="sb-name">Team 2</span><b class="sb-score">0</b></div>
+  </div>
+  <div id="respawn" class="respawn hidden">AUSGESCHALTET<span>Wiedereinstieg in <b id="respawn-t">3</b></span></div>
   <div id="killfeed" class="killfeed"></div>
   <div id="toast" class="toast"></div>
   <canvas id="minimap" width="220" height="220" class="minimap"></canvas>
@@ -144,6 +154,18 @@
     <p id="result-sub"></p>
     <div class="reward"><i class="vb"></i><span id="result-vb">0</span> V-Bucks verdient</div>
     <button id="btn-again" class="play">ZURÜCK ZUR LOBBY</button>
+  </div>
+</div>
+
+<!-- ============ TOUCH-STEUERUNG ============ -->
+<div id="touch" class="touch hidden"></div>
+
+<!-- ============ BITTE DREHEN ============ -->
+<div id="rotate" class="overlay dim hidden">
+  <div class="panel">
+    <div class="rot-icon">📱</div>
+    <h2>BITTE QUER HALTEN</h2>
+    <p>LEON ROYALE spielt sich im Querformat deutlich besser.</p>
   </div>
 </div>
 

@@ -176,3 +176,129 @@ button.ghost:hover{border-color:var(--blue);color:#fff}
 .speedo{font:900 44px/1 inherit;text-shadow:0 3px 10px #000}
 .speedo span{font-size:14px;color:#8ea4c8;margin-left:5px}
 .drive-tip{margin-top:6px;font-size:12px;color:#9fb6d8}
+
+/* ---------- Team-Scoreboard (Team-Rumble) ---------- */
+.scoreboard{position:absolute;top:14px;right:18px;width:250px;
+  font:700 12px/1 "Trebuchet MS",sans-serif;user-select:none}
+.sb-top{display:flex;align-items:center;gap:7px;background:rgba(9,14,28,.8);
+  border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.sb-badge{width:16px;height:16px;flex:none;border-radius:3px;background:linear-gradient(180deg,#5cb8ff,#1f6fd0)}
+.sb-bar{flex:1;height:9px;border-radius:99px;background:#16233c;overflow:hidden}
+.sb-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4fa8ff,#9fe0ff);transition:width .3s}
+.sb-top b{font-size:12px;color:#dbe8fb}
+.sb-row{display:flex;align-items:center;gap:8px;margin-top:3px;padding:5px 8px;border-radius:5px;
+  background:rgba(9,14,28,.72);border:1px solid var(--line)}
+.sb-rank{color:var(--gold);font-size:11px;width:26px}
+.sb-name{flex:1;color:#dbe8fb}
+.sb-score{color:#fff;font-size:14px}
+.sb-row.own{border-color:#3a7fd0;box-shadow:inset 2px 0 0 #4fa8ff}
+.sb-row.foe{box-shadow:inset 2px 0 0 #ff5a4d}
+#hud.team .hud-mats{top:104px}
+#hud.team .pill.storm{display:none}
+
+.respawn{position:absolute;left:50%;top:38%;transform:translateX(-50%);text-align:center;
+  font:900 30px/1.2 "Trebuchet MS",sans-serif;letter-spacing:3px;color:#ff6a5e;text-shadow:0 3px 12px #000}
+.respawn span{display:block;margin-top:10px;font:700 15px/1 inherit;letter-spacing:1px;color:#dbe8fb}
+.respawn b{color:var(--gold);font-size:20px}
+
+/* ---------- Touch-Steuerung ---------- */
+.touch{position:fixed;inset:0;z-index:15;touch-action:none;-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.t-zone{position:absolute;top:0;bottom:0;touch-action:none}
+.t-move{left:0;width:45%}
+.t-look{right:0;width:55%}
+
+.t-stick{position:absolute;width:132px;height:132px;margin:-66px 0 0 -66px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.28);background:rgba(9,14,28,.28);opacity:0;transition:opacity .12s;
+  pointer-events:none}
+.t-stick.on{opacity:1}
+.t-stick i{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;
+  background:rgba(255,255,255,.4);border:2px solid rgba(255,255,255,.65);
+  transform:translate(-50%,-50%);will-change:transform}
+
+.t-btn{position:absolute;border:2px solid rgba(255,255,255,.32);background:rgba(9,14,28,.5);
+  color:#eaf3ff;font:800 13px/1 "Trebuchet MS",sans-serif;letter-spacing:1px;border-radius:50%;
+  display:grid;place-items:center;touch-action:none}
+.t-btn.down{background:rgba(0,179,255,.5);border-color:#9fe0ff;transform:scale(.94)}
+.t-fire{right:20px;bottom:18px;width:104px;height:104px;font-size:15px;
+  background:rgba(255,80,70,.4);border-color:rgba(255,140,130,.65)}
+.t-jump{right:134px;bottom:56px;width:70px;height:70px;font-size:26px}
+.t-aim{right:140px;bottom:136px;width:64px;height:64px}
+.t-use{right:26px;bottom:134px;width:64px;height:64px;font-size:20px}
+.t-reload{right:100px;bottom:210px;width:56px;height:56px;font-size:22px}
+
+.t-btn.t-small{position:relative;width:auto;height:36px;padding:0 12px;border-radius:9px;
+  font-size:11px;letter-spacing:.5px}
+.t-build{position:absolute;left:14px;bottom:74px;display:flex;gap:7px}
+.touch.nobuild .t-build{display:none}
+.t-top{position:absolute;left:14px;top:10px;display:flex;gap:7px}
+
+/* HUD weicht der Touch-Steuerung aus */
+#hud.touch-ui .hud-bottom{bottom:10px;left:12px;right:12px}
+#hud.touch-ui .bars{width:190px}
+#hud.touch-ui .slots{position:absolute;left:50%;bottom:0;transform:translateX(-50%);pointer-events:auto}
+#hud.touch-ui .slot{width:50px;height:50px;font-size:21px}
+#hud.touch-ui .minimap{width:124px;height:124px;top:54px;left:12px}
+#hud.touch-ui .hud-mats{right:14px;top:10px}
+#hud.touch-ui.team .hud-mats{top:96px}
+#hud.touch-ui .killfeed{top:136px;right:14px}
+#hud.touch-ui .ammo{left:210px;right:auto;bottom:14px;font-size:24px}
+#hud.touch-ui .drive-tip{display:none}
+#hud.touch-ui .drive{bottom:120px}
+
+/* Sehr flache Landscape-Displays (Telefon quer) */
+@media (max-height: 560px) {
+  .t-fire{width:88px;height:88px;right:14px;bottom:14px;font-size:13px}
+  .t-jump{width:60px;height:60px;right:112px;bottom:44px;font-size:22px}
+  .t-aim{width:56px;height:56px;right:116px;bottom:118px;font-size:11px}
+  .t-use{width:56px;height:56px;right:20px;bottom:112px;font-size:18px}
+  .t-reload{width:50px;height:50px;right:86px;bottom:182px;font-size:19px}
+  .t-stick{width:112px;height:112px;margin:-56px 0 0 -56px}
+  .t-stick i{width:48px;height:48px;margin:-24px 0 0 -24px}
+  .t-build{bottom:66px;left:10px}
+  .t-btn.t-small{height:32px;padding:0 10px;font-size:10px}
+  #hud.touch-ui .minimap{width:104px;height:104px;top:44px;left:10px}
+  #hud.touch-ui .bars{width:150px}
+  #hud.touch-ui .bar-hp,#hud.touch-ui .bar-shield{height:14px}
+  #hud.touch-ui .bar-hp span,#hud.touch-ui .bar-shield span{font-size:10px;line-height:12px}
+  #hud.touch-ui .slot{width:44px;height:44px;font-size:18px}
+  #hud.touch-ui .ammo{left:172px;right:auto;bottom:12px;font-size:20px}
+  #hud.touch-ui .killfeed{top:120px}
+}
+
+/* ---------- Kleine Bildschirme ---------- */
+@media (max-width: 900px), (max-height: 520px) {
+  .logo{font-size:34px}.logo span{font-size:20px;letter-spacing:8px}
+  .logo.small{font-size:19px}.logo.small span{font-size:19px}
+  .topbar{padding:9px 14px}
+  .wallet{font-size:15px;padding:6px 10px}
+  .tabs{padding:8px 12px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab{padding:9px 12px;font-size:12px;letter-spacing:1px;white-space:nowrap}
+  .tabpage{padding:12px 14px}
+  .card{width:145px}
+  .card .thumb{height:96px}
+  .card .name{font-size:12px}
+  .cards.shop{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}
+  .lobbybar{flex-wrap:wrap;gap:10px;padding:10px 14px}
+  .modepick{order:1;width:100%;overflow-x:auto}
+  .mode{font-size:11px;padding:7px 11px}
+  #loadout-line{order:3;font-size:11px}
+  button.play{order:2;font-size:16px;padding:12px 30px;letter-spacing:2px}
+  .arena-rank{padding:14px;gap:12px}
+  .div-badge{width:56px;height:56px;font-size:20px}
+  .arena-rank h3{font-size:15px}
+  .hype-bar{width:min(220px,50vw)}
+  .howto{font-size:13px}
+  .panel{padding:22px 26px}
+  .panel h2{font-size:21px}
+  .scoreboard{width:190px;top:10px;right:12px}
+  .hud-top{top:8px;gap:6px}
+  .pill{padding:5px 9px;font-size:10px}
+  .pill b{font-size:13px}
+  .mat{padding:4px 8px;font-size:12px}
+  .killfeed{top:150px;font-size:11px}
+  .toast{font-size:17px}
+  .ammo{font-size:26px;bottom:150px}
+  .bigmap canvas{width:min(86vw,86vh);height:min(86vw,86vh)}
+}

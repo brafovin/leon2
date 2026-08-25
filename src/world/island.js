@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Terrain } from './terrain.js';
+import { Terrain, TownTerrain } from './terrain.js';
+import { generateTown } from './town.js';
 import { mulberry32 } from './noise.js';
 import { buildTree, buildRock, buildBush, buildWreck, buildHouse, buildTower, buildChest, buildRoadPatch } from './props.js';
 
@@ -14,20 +15,30 @@ const POI_NAMES_ARENA = ['Arena-Nord', 'Arena-Süd', 'Zentralring', 'Steinbruch'
 export class World {
   /**
    * @param {THREE.Scene} scene
-   * @param {{mode:'br'|'arena', seed?:number}} opts
+   * @param {{mode:string, layout?:'island'|'town', seed?:number, quality?:number}} opts
    */
-  constructor(scene, { mode = 'br', seed = Math.floor(Math.random() * 1e9) } = {}) {
+  constructor(scene, { mode = 'br', layout = 'island', seed = Math.floor(Math.random() * 1e9), quality = 1 } = {}) {
     this.scene = scene;
     this.mode = mode;
+    this.layout = layout;
+    this.quality = quality;          // 1 = Desktop, <1 = Mobilgerät
     this.rng = mulberry32(seed);
     this.group = new THREE.Group();
     scene.add(this.group);
 
-    const size = mode === 'arena' ? 230 : 430;
-    this.size = size;
-    this.terrain = new Terrain({ size, segments: mode === 'arena' ? 120 : 170, seed, hilliness: mode === 'arena' ? 0.7 : 1 });
+    if (layout === 'town') {
+      this.terrain = new TownTerrain({ radius: 108, segments: Math.round(150 * quality), seed });
+      this.size = 216;
+    } else {
+      const size = mode === 'arena' ? 230 : 430;
+      this.size = size;
+      this.terrain = new Terrain({
+        size, segments: Math.round((mode === 'arena' ? 120 : 170) * quality),
+        seed, hilliness: mode === 'arena' ? 0.7 : 1,
+      });
+    }
     this.group.add(this.terrain.mesh);
-    this.water = Terrain.water(size);
+    this.water = Terrain.water(layout === 'town' ? this.size * 3.5 : this.size);
     this.group.add(this.water);
 
     /** @type {Array<{x:number,z:number,hw:number,hd:number,y0:number,y1:number,round?:boolean,r?:number,owner?:any}>} */
@@ -44,9 +55,12 @@ export class World {
     this.chests = [];
     this.pois = [];
     this.spawnPoints = [];
+    /** Spawnzonen pro Team (nur Team-Modus / Stadt-Map). */
+    this.teamSpawns = null;
     this._scratch = [];
 
-    this._generate();
+    if (layout === 'town') generateTown(this);
+    else this._generate();
   }
 
   /* ---------------- Generierung ---------------- */
@@ -162,7 +176,15 @@ export class World {
   _scatter(obj, minHeight) {
     const p = this._findFlat(1.2, this.size / 2 * 0.94, minHeight);
     if (!p) return;
-    obj.position.set(p.x, p.y, p.z);
+    this.placeProp(obj, p.x, p.y, p.z);
+  }
+
+  /**
+   * Statisches Objekt setzen; bringt es ein `userData.harvest` mit,
+   * wird es als abbaubare Ressource registriert.
+   */
+  placeProp(obj, x, y, z) {
+    obj.position.set(x, y, z);
     // Streuobjekte sind statisch und werfen keine Schatten -> spart den
     // zweiten Renderdurchlauf für über tausend Meshes.
     obj.traverse((m) => { if (m.isMesh) m.castShadow = false; });
@@ -173,12 +195,21 @@ export class World {
       const h = obj.userData.harvest;
       const entry = {
         obj, hp: h.hp, maxHp: h.hp, mat: h.mat, yield: h.yield,
-        x: p.x, y: p.y, z: p.z, radius: h.radius, height: h.height, alive: true,
+        x, y, z, radius: h.radius, height: h.height, alive: true,
       };
       this.harvestables.push(entry);
-      entry.collider = this.addCollider({ x: p.x, z: p.z, hw: h.radius * 0.6, hd: h.radius * 0.6,
-        y0: p.y, y1: p.y + h.height, harvestable: entry });
+      entry.collider = this.addCollider({ x, z, hw: h.radius * 0.6, hd: h.radius * 0.6,
+        y0: y, y1: y + h.height, harvestable: entry });
     }
+    return obj;
+  }
+
+  /** Gebäude o. Ä. mit Kollisionsboxen und begehbarem Dach setzen. */
+  placeStructure(obj, p) {
+    obj.position.set(p.x, p.y, p.z);
+    this._registerStructure(obj, p);
+    this.group.add(obj);
+    return obj;
   }
 
   _findFlat(clearance = 2, maxR = null, minHeight = 0.9) {

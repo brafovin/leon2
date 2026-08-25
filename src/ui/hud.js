@@ -24,6 +24,7 @@ export class Hud {
       const d = document.createElement('div');
       d.className = 'slot empty';
       d.innerHTML = `<span class="k">${i + 1}</span><span class="ic">${WEAPONS[id].icon}</span>`;
+      d.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onSlot?.(i); });
       this.slotsEl.appendChild(d);
       this.slotEls.push(d);
     });
@@ -31,6 +32,9 @@ export class Hud {
 
   setMode(mode) {
     $('hype-pill').classList.toggle('hidden', mode !== 'arena');
+    $('scoreboard').classList.toggle('hidden', mode !== 'team');
+    $('respawn').classList.add('hidden');
+    this.root.classList.toggle('team', mode === 'team');
     this.mode = mode;
   }
 
@@ -50,6 +54,7 @@ export class Hud {
     $('kills').textContent = player.kills;
     $('storm-info').textContent = state.stormLabel;
     if (this.mode === 'arena') $('hud-hype').textContent = state.hype;
+    if (this.mode === 'team' && state.team) this._scoreboard(state.team);
 
     this.slotEls.forEach((el, i) => {
       const w = player.slots[i];
@@ -71,6 +76,26 @@ export class Hud {
 
     $('drive-hud').classList.toggle('hidden', !player.vehicle);
     if (player.vehicle) $('kmh').textContent = Math.round(player.vehicle.kmh);
+  }
+
+  _scoreboard(t) {
+    const rows = [$('sb-row-1'), $('sb-row-2')];
+    t.rows.forEach((r, i) => {
+      const el = rows[i];
+      el.querySelector('.sb-rank').textContent = i === 0 ? '1st' : '2nd';
+      el.querySelector('.sb-name').textContent = r.name;
+      el.querySelector('.sb-score').textContent = r.score;
+      el.classList.toggle('own', r.you);
+      el.classList.toggle('foe', !r.you);
+    });
+    $('sb-num').textContent = `${t.own} / ${t.target}`;
+    $('sb-fill').style.width = `${Math.min(100, (t.own / t.target) * 100)}%`;
+
+    const box = $('respawn');
+    if (t.respawn) {
+      box.classList.remove('hidden');
+      $('respawn-t').textContent = Math.max(0, Math.ceil(t.respawn.at - t.now));
+    } else box.classList.add('hidden');
   }
 
   killfeed(text, color = '#ff4d5e') {
@@ -100,6 +125,23 @@ export class Hud {
     ctx2d.clearRect(0, 0, W, W);
     ctx2d.fillStyle = '#12406b'; ctx2d.fillRect(0, 0, W, W);
 
+    // Stadtkarte: Insel als Scheibe plus die vereinfachten Flächen
+    if (world.mapHints) {
+      const h = world.mapHints;
+      ctx2d.fillStyle = '#5ab23f';
+      ctx2d.beginPath();
+      ctx2d.arc(cx, cy, h.radius * s, 0, Math.PI * 2);
+      ctx2d.fill();
+      for (const r of h.rects) {
+        ctx2d.fillStyle = r.color;
+        ctx2d.fillRect(cx + (r.x - r.w / 2) * s, cy + (r.z - r.d / 2) * s, r.w * s, r.d * s);
+      }
+      ctx2d.strokeStyle = '#dff6ff'; ctx2d.lineWidth = 2;
+      ctx2d.beginPath(); ctx2d.arc(cx, cy, h.radius * s, 0, Math.PI * 2); ctx2d.stroke();
+      this._mapOverlay(ctx2d, world, player, bots, storm, W, s, cx, cy);
+      return;
+    }
+
     // Landmasse grob aus der Höhenkarte
     const step = W / 56;
     for (let ix = 0; ix < 56; ix++) {
@@ -111,6 +153,10 @@ export class Hud {
         ctx2d.fillRect(ix * step, iz * step, step + 1, step + 1);
       }
     }
+    this._mapOverlay(ctx2d, world, player, bots, storm, W, s, cx, cy);
+  }
+
+  _mapOverlay(ctx2d, world, player, bots, storm, W, s, cx, cy) {
     // POIs
     ctx2d.fillStyle = 'rgba(255,255,255,.85)';
     ctx2d.font = `${Math.max(9, W / 58)}px "Trebuchet MS"`;

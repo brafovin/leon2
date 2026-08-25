@@ -31,9 +31,12 @@ export class Player {
     this.alive = true;
     this.isPlayer = true;
     this.name = 'Du';
+    this.team = opts.team ?? 0;
 
+    // Arena und Team-Rumble starten voll ausgerüstet
+    this.loadedOut = this.mode === 'arena' || this.mode === 'team';
     this.hp = 100; this.maxHp = 100;
-    this.shield = this.mode === 'arena' ? 50 : 0; this.maxShield = 100;
+    this.shield = this.loadedOut ? 50 : 0; this.maxShield = 100;
     this.mats = this.mode === 'arena' ? { wood: 0, stone: 0, metal: 0 } : { wood: 60, stone: 20, metal: 0 };
     this.kills = 0;
     this.vehicle = null;
@@ -45,7 +48,7 @@ export class Player {
 
     // Inventar: Arena startet voll ausgerüstet
     this.slots = [makeWeaponState('pickaxe'), null, null, null];
-    if (this.mode === 'arena') {
+    if (this.loadedOut) {
       this.slots[1] = makeWeaponState('smg');
       this.slots[2] = makeWeaponState('shotgun');
       this.slots[3] = makeWeaponState('bow');
@@ -135,16 +138,16 @@ export class Player {
     // Bewegung
     const f = this.forward();
     const right = new THREE.Vector3(f.z, 0, -f.x);
-    const move = new THREE.Vector3();
-    if (input.down('KeyW')) move.add(f);
-    if (input.down('KeyS')) move.sub(f);
-    if (input.down('KeyD')) move.add(right);
-    if (input.down('KeyA')) move.sub(right);
+    const ax = input.moveAxis();
+    const move = new THREE.Vector3()
+      .addScaledVector(f, ax.y)
+      .addScaledVector(right, ax.x);
 
     const sprint = input.down('ShiftLeft') && !this.ads;
     let speed = sprint ? SPRINT : WALK;
     if (this.ads) speed *= 0.55;
-    if (move.lengthSq() > 0) move.normalize().multiplyScalar(speed);
+    const mag = Math.min(1, move.length());
+    if (mag > 0.001) move.normalize().multiplyScalar(speed * mag);
 
     const accel = this.grounded ? 18 : 6;
     this.vel.x += (move.x - this.vel.x) * Math.min(1, accel * dt);
@@ -358,6 +361,20 @@ export class Player {
     sfx.hurt();
     if (this.hp <= 0) { this.hp = 0; this.alive = false; return true; }
     return false;
+  }
+
+  /** Wiedereinstieg im Team-Modus. */
+  respawn(p) {
+    if (this.vehicle) this.exitVehicle();
+    this.pos.set(p.x, p.y + 0.2, p.z);
+    this.vel.set(0, 0, 0);
+    this.hp = this.maxHp;
+    this.shield = this.loadedOut ? 50 : 0;
+    this.alive = true;
+    this.hitFlash = 0;
+    this.rig.root.visible = true;
+    if (this.weapon) { this.weapon.reloading = 0; this.weapon.cooldown = 0; }
+    for (const w of this.slots) if (w && w.def.mag) { w.mag = w.def.mag; w.reserve = w.def.reserve; }
   }
 
   heal(hp, shield) {
